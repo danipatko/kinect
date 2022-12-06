@@ -1,0 +1,12 @@
+﻿<Window x:Class="KinectCursor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:KinectCursor"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="500" Width="660" Closing="Window_Closing" Loaded="Window_Loaded">
+    <Grid>
+        <Image x:Name="DisplayImage" HorizontalAlignment="Left" Height="480" VerticalAlignment="Top" Width="640"/>
+    </Grid>
+</Window>
