@@ -78,14 +78,10 @@ namespace KinectBinds
             display = new Display(sensor);
             DisplayImage.Source = display.ImageSource;
             PositionText.Text = display.skeletonPosition;
-
-            // Dispatcher.Invoke(() => {
-            //     PositionText.Text = display.skeletonPosition;
-            // });
-
+    
             sensor.SkeletonStream.Enable();
             sensor.SkeletonFrameReady += display.OnFrameReady;
-            display.DebugData += Augh;
+            display.OnDebugInfo += Log;
 
             try
             {
@@ -97,7 +93,7 @@ namespace KinectBinds
             }
         }
 
-        private void Augh(object sender, Display.DebugDataArgs e)
+        private void Log(object sender, Display.DebugInfoArgs e)
         {
             PositionText.Text = e.SkeletonPosition;
         }

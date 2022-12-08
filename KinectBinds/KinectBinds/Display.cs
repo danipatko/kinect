@@ -1,18 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using Microsoft.Kinect;
 
 namespace KinectBinds
@@ -28,7 +16,7 @@ namespace KinectBinds
         public readonly double height = 480;
 
         // debug stuff to show on screen
-        public string skeletonPosition = "bhkjeasf";
+        public string skeletonPosition = "";
 
         private float screenWidth;
         public float ScreenWidth { 
@@ -89,7 +77,7 @@ namespace KinectBinds
                     {
                         if (skel.TrackingState == SkeletonTrackingState.Tracked)
                         {
-                            FireDebugData(new DebugDataArgs($"Position X:{skel.Position.X} Y:{skel.Position.Y} Z:{skel.Position.Z}"));
+                            FireDebugData(new DebugInfoArgs($"Position X:{skel.Position.X} Y:{skel.Position.Y} Z:{skel.Position.Z}"));
 
                             DrawBones(skel, dc);
                         }
@@ -145,8 +133,6 @@ namespace KinectBinds
 
         public Point SkeletonPointToWindow(SkeletonPoint skelpoint)
         {
-            // Convert point to depth space.  
-            // We are not using depth directly, but we do want the points in our 640x480 output resolution.
             DepthImagePoint depthPoint = sensor.CoordinateMapper.MapSkeletonPointToDepthPoint(skelpoint, DepthImageFormat.Resolution640x480Fps30);
             return new Point(depthPoint.X, depthPoint.Y);
         }
@@ -157,21 +143,20 @@ namespace KinectBinds
             return new Point(depthPoint.X * widthRatio, depthPoint.Y * heightRatio);
         }
 
-        public event EventHandler<DebugDataArgs> DebugData;
+        public event EventHandler<DebugInfoArgs> OnDebugInfo;
 
-        public class DebugDataArgs : EventArgs
+        public class DebugInfoArgs : EventArgs
         {
             public string SkeletonPosition { get; set; }
-            public DebugDataArgs(string skeletonPosition )
+            public DebugInfoArgs(string skeletonPosition )
             {
                 SkeletonPosition = skeletonPosition;
             }
         }
 
-
-        protected virtual void FireDebugData(DebugDataArgs e)
+        protected virtual void FireDebugData(DebugInfoArgs e)
         {
-            DebugData?.Invoke(this, e);
+            OnDebugInfo?.Invoke(this, e);
         }
     }
 }
