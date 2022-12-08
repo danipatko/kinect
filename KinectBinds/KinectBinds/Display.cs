@@ -15,90 +15,59 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Microsoft.Kinect;
 
-namespace KinectCursor
+namespace KinectBinds
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
-    public partial class MainWindow : Window
+    internal class Display
     {
-        public MainWindow()
-        {
-            InitializeComponent();
+        private readonly KinectSensor sensor;
+
+        private readonly DrawingGroup drawingGroup;
+        public DrawingImage ImageSource { get; }
+
+        public readonly double width = 640;
+        public readonly double height = 480;
+
+        // debug stuff to show on screen
+        public string skeletonPosition = "bhkjeasf";
+
+        private float screenWidth;
+        public float ScreenWidth { 
+            get => screenWidth; 
+            set {
+                screenWidth = value;
+                widthRatio = screenWidth / (float)width;
+            }
         }
 
-        private KinectSensor sensor;
+        private float screenHeight;
 
-        private DrawingGroup drawingGroup;
-        private DrawingImage imageSource;
+        public float ScreenHeight
+        {
+            get => screenHeight;
+            set
+            {
+                screenHeight = value;
+                heightRatio = screenHeight / (float)height;
+            }
+        }
 
-        private readonly double width = 640;
-        private readonly double height = 480;
-
-        private readonly float screenWidth = 2560;
-        private readonly float screenHeight = 1440;
-
-        private float widthRatio;
-        private float heightRatio;
+        public float widthRatio;
+        public float heightRatio;
 
         private readonly Pen drawPen = new Pen(Brushes.Green, 6);
 
-        private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        public Display(KinectSensor sensor, int width = 2560, int height = 1440)
         {
-            if (sensor != null) sensor.Stop();
-        }
-
-        private void SetCursorPosition(Point point)
-        {
-             Win32.POINT p = new Win32.POINT((int)(point.X * widthRatio), (int)(point.Y * heightRatio));
-            // Win32.POINT p = new Win32.POINT((int)point.X, (int)point.Y);
-            if(p.x == 0 && p.y == 0)
-            {
-                return;
-            }
-            Console.WriteLine($"x = {p.x}, y = {p.y}");
-            Win32.SetCursorPos(p.x, p.y);
-        }
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            DisplayImage.Width = width;
-            DisplayImage.Height = height;
-
-            widthRatio = screenWidth / (float)width;
-            heightRatio = screenHeight / (float)height;
-
-            MessageBox.Show($"Width: {widthRatio} | height: {heightRatio}");
+            this.sensor = sensor;
+            
+            ScreenHeight = height;
+            ScreenWidth = width;
 
             drawingGroup = new DrawingGroup();
-            imageSource = new DrawingImage(drawingGroup);
-            DisplayImage.Source = imageSource;
- 
-            // find a sensor
-            foreach (var potentialSensor in KinectSensor.KinectSensors)
-            {
-                if (potentialSensor.Status == KinectStatus.Connected)
-                {
-                    sensor = potentialSensor;
-                    break;
-                }
-            }
-            if (sensor == null) throw new Exception("Unable to find kinect sensor!");
-
-            sensor.SkeletonStream.Enable();
-            sensor.SkeletonFrameReady += OnFrameReady;
-
-            try
-            {
-                sensor.Start();
-            }
-            catch (IOException)
-            {
-                sensor = null;
-            }
+            ImageSource = new DrawingImage(drawingGroup);
         }
 
-        private void OnFrameReady(object sender, SkeletonFrameReadyEventArgs e)
+        public void OnFrameReady(object sender, SkeletonFrameReadyEventArgs e)
         {
             Skeleton[] skeletons = new Skeleton[0];
 
@@ -113,24 +82,24 @@ namespace KinectCursor
 
             using (DrawingContext dc = drawingGroup.Open())
             {
-                // base background
                 dc.DrawRectangle(Brushes.Black, null, new Rect(0.0, 0.0, width, height));
-
                 if (skeletons.Length > 0)
                 {
                     foreach (Skeleton skel in skeletons)
                     {
-                        if (skel.TrackingState == SkeletonTrackingState.Tracked) DrawBonesAndJoints(skel, dc);
-                        SetCursorPosition(SkeletonPointToScreen(skel.Joints[JointType.HandRight].Position));
+                        if (skel.TrackingState == SkeletonTrackingState.Tracked)
+                        {
+                            FireDebugData(new DebugDataArgs($"Position X:{skel.Position.X} Y:{skel.Position.Y} Z:{skel.Position.Z}"));
+
+                            DrawBones(skel, dc);
+                        }
                     }
                 }
-
-                // prevent drawing outside of our render area
                 drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, width, height));
             }
         }
 
-        private void DrawBonesAndJoints(Skeleton skeleton, DrawingContext drawingContext)
+        private void DrawBones(Skeleton skeleton, DrawingContext drawingContext)
         {
             // Render Torso
             DrawBone(skeleton, drawingContext, JointType.Head, JointType.ShoulderCenter);
@@ -151,8 +120,6 @@ namespace KinectCursor
             DrawBone(skeleton, drawingContext, JointType.ElbowRight, JointType.WristRight);
             DrawBone(skeleton, drawingContext, JointType.WristRight, JointType.HandRight);
 
-            Console.WriteLine(skeleton.Joints[JointType.HandRight].Position);
-
             // Left Leg
             DrawBone(skeleton, drawingContext, JointType.HipLeft, JointType.KneeLeft);
             DrawBone(skeleton, drawingContext, JointType.KneeLeft, JointType.AnkleLeft);
@@ -163,27 +130,48 @@ namespace KinectCursor
             DrawBone(skeleton, drawingContext, JointType.KneeRight, JointType.AnkleRight);
             DrawBone(skeleton, drawingContext, JointType.AnkleRight, JointType.FootRight);
         }
+
         private void DrawBone(Skeleton skeleton, DrawingContext drawingContext, JointType jointType0, JointType jointType1)
         {
             Joint joint0 = skeleton.Joints[jointType0];
             Joint joint1 = skeleton.Joints[jointType1];
-
-            // If we can't find either of these joints, exit
+            
+            // ignore inferred/untracked joints
             if (joint0.TrackingState == JointTrackingState.NotTracked || joint1.TrackingState == JointTrackingState.NotTracked) return;
-
-            // Don't draw if both points are inferred
             if (joint0.TrackingState == JointTrackingState.Inferred && joint1.TrackingState == JointTrackingState.Inferred) return;
 
-            // We assume all drawn bones are inferred unless BOTH joints are tracked
-            drawingContext.DrawLine(drawPen, SkeletonPointToScreen(joint0.Position), SkeletonPointToScreen(joint1.Position));
+            drawingContext.DrawLine(drawPen, SkeletonPointToWindow(joint0.Position), SkeletonPointToWindow(joint1.Position));
         }
 
-        private Point SkeletonPointToScreen(SkeletonPoint skelpoint)
+        public Point SkeletonPointToWindow(SkeletonPoint skelpoint)
         {
             // Convert point to depth space.  
             // We are not using depth directly, but we do want the points in our 640x480 output resolution.
             DepthImagePoint depthPoint = sensor.CoordinateMapper.MapSkeletonPointToDepthPoint(skelpoint, DepthImageFormat.Resolution640x480Fps30);
             return new Point(depthPoint.X, depthPoint.Y);
+        }
+
+        public Point SkeletonPointToScreen(SkeletonPoint skelpoint)
+        {
+            DepthImagePoint depthPoint = sensor.CoordinateMapper.MapSkeletonPointToDepthPoint(skelpoint, DepthImageFormat.Resolution640x480Fps30);
+            return new Point(depthPoint.X * widthRatio, depthPoint.Y * heightRatio);
+        }
+
+        public event EventHandler<DebugDataArgs> DebugData;
+
+        public class DebugDataArgs : EventArgs
+        {
+            public string SkeletonPosition { get; set; }
+            public DebugDataArgs(string skeletonPosition )
+            {
+                SkeletonPosition = skeletonPosition;
+            }
+        }
+
+
+        protected virtual void FireDebugData(DebugDataArgs e)
+        {
+            DebugData?.Invoke(this, e);
         }
     }
 }
