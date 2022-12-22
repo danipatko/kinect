@@ -15,9 +15,6 @@ namespace KinectBinds
         public readonly double width = 640;
         public readonly double height = 480;
 
-        // debug stuff to show on screen
-        public string skeletonPosition = "";
-
         private float screenWidth;
         public float ScreenWidth { 
             get => screenWidth; 
@@ -28,7 +25,6 @@ namespace KinectBinds
         }
 
         private float screenHeight;
-
         public float ScreenHeight
         {
             get => screenHeight;
@@ -76,11 +72,8 @@ namespace KinectBinds
                     foreach (Skeleton skel in skeletons)
                     {
                         if (skel.TrackingState == SkeletonTrackingState.Tracked)
-                        {
-                            FireDebugData(new DebugInfoArgs($"Position X:{skel.Position.X} Y:{skel.Position.Y} Z:{skel.Position.Z}"));
-
                             DrawBones(skel, dc);
-                        }
+                       
                     }
                 }
                 drawingGroup.ClipGeometry = new RectangleGeometry(new Rect(0.0, 0.0, width, height));
@@ -141,22 +134,6 @@ namespace KinectBinds
         {
             DepthImagePoint depthPoint = sensor.CoordinateMapper.MapSkeletonPointToDepthPoint(skelpoint, DepthImageFormat.Resolution640x480Fps30);
             return new Point(depthPoint.X * widthRatio, depthPoint.Y * heightRatio);
-        }
-
-        public event EventHandler<DebugInfoArgs> OnDebugInfo;
-
-        public class DebugInfoArgs : EventArgs
-        {
-            public string SkeletonPosition { get; set; }
-            public DebugInfoArgs(string skeletonPosition )
-            {
-                SkeletonPosition = skeletonPosition;
-            }
-        }
-
-        protected virtual void FireDebugData(DebugInfoArgs e)
-        {
-            OnDebugInfo?.Invoke(this, e);
-        }
+        }         
     }
 }

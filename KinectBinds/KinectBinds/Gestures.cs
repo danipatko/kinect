@@ -1,15 +1,22 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Kinect;
 
 namespace KinectBinds
 {
     internal class Gestures
     {
-        KinectSensor sensor;
+        // OFFSETS
+        // max distance between right hand and right shoulder
+        private const float RightHandIdleOffset = 0.25f;
+        // angle of the body and left hand (up -> offset < angle | down -> -offset > angle | else middle)
+        private const double LeftHandOffsetDeg = 30;
+        // the depth where the body is centered
+        private const float BodyCenter = .6f;
+        // one step distance forward
+        private const float BodyOffsetY = .1f;
+        // one step distance sideways
+        private const float BodyOffsetX = .2f;
+
         Skeleton skeleton;
 
         public enum HandPosition
@@ -20,55 +27,62 @@ namespace KinectBinds
             Middle = 2
         }
 
-        public Gestures(KinectSensor sensor)
-        {
-            // skeleton = new Skeleton();
-            this.sensor = sensor;
-        }
-
         public void OnFrameReady(object sender, SkeletonFrameReadyEventArgs e)
         {
+            Skeleton[] skeletons = new Skeleton[0];
+
             using (SkeletonFrame skeletonFrame = e.OpenSkeletonFrame())
             {
                 if (skeletonFrame != null)
                 {
-                    var skeletons = new Skeleton[skeletonFrame.SkeletonArrayLength];
+                    skeletons = new Skeleton[skeletonFrame.SkeletonArrayLength];
                     skeletonFrame.CopySkeletonDataTo(skeletons);
-                    // tracks the closest one (override using sensor.SkeletonStream.AppChoosesSkeletons = true)
-                    skeleton = skeletons[0];
                 }
             }
 
-            Console.WriteLine(skeleton.TrackingState);
+            skeleton = new Skeleton();
+            foreach (Skeleton s in skeletons)
+            {
+                if (s.TrackingState == SkeletonTrackingState.Tracked)
+                {
+                    skeleton = s;
+                    break;
+                }
+            }
 
-            CheckRightHandIdle();
+            if(skeleton.TrackingState != SkeletonTrackingState.Tracked)
+            {
+                // default values
+                RightHandIdle = true;
+                RightHandPosition = (0, 0);
+                LeftHandAngle = double.NaN;
+                leftHandPosition = HandPosition.Unknown;
+                IsBodyCentered = true;
+                BodyPosition = (0, 0);
+                return;
+            }
+
             CheckRightHand();
             CheckLeftHand();
             CheckPosition();
         }
 
         public (float x, float y) RightHandPosition { get; set; } = (0, 0);
+        public bool RightHandIdle { get; set; } = true;
         private void CheckRightHand()
         {
-            if (RightHandIdle)
+            Joint hand = skeleton.Joints[JointType.HandRight], thorax = skeleton.Joints[JointType.ShoulderRight];
+            if (Dist((hand.Position.X, hand.Position.Y), (thorax.Position.X, thorax.Position.Y)) < RightHandIdleOffset)
             {
+                RightHandIdle = true;
                 RightHandPosition = (0, 0);
                 return;
             }
-            Joint hand = skeleton.Joints[JointType.HandRight], thorax = skeleton.Joints[JointType.ShoulderRight];
+            RightHandIdle = false;
             RightHandPosition = (hand.Position.X - thorax.Position.X, hand.Position.Y - thorax.Position.Y);
         }
 
-        public bool RightHandIdle { get; set; } = true;
-        private const float RightHandIdleOffset = 0.25f;
-        private void CheckRightHandIdle()
-        {
-            Joint hand = skeleton.Joints[JointType.HandRight], thorax = skeleton.Joints[JointType.ShoulderRight];
-            RightHandIdle = hand.TrackingState == JointTrackingState.Tracked && Dist((hand.Position.X, hand.Position.Y), (thorax.Position.X, thorax.Position.Y)) < RightHandIdleOffset;
-        }
-
         public double LeftHandAngle { get; set; } = double.NaN;
-        private const double LeftHandOffsetDeg = 30f;
         private HandPosition leftHandPosition = HandPosition.Unknown;
         private void CheckLeftHand()
         {
@@ -94,12 +108,15 @@ namespace KinectBinds
         }
 
         public (float x, float y) BodyPosition { get; set; } = (0, 0);
-        public bool BodyCentered { get; set; } = false;
-        private const float BodyCenter = .6f; // the depth where the body is centered
-        private const float BodyOffsetY = .1f;
-        private const float BodyOffsetX = .2f;
+        public bool IsBodyCentered { get; set; } = false;
         private void CheckPosition()
         {
+            if (skeleton.TrackingState == SkeletonTrackingState.NotTracked)
+            {
+                BodyPosition = (0, 0);
+                return;
+            }
+
             float depth = -(skeleton.Position.Z / 3f - BodyCenter);
             BodyPosition = (skeleton.Position.X, depth);
             if (-BodyOffsetX < skeleton.Position.X && skeleton.Position.X < BodyOffsetX) BodyPosition = (0, BodyPosition.y); // set x to 0
@@ -112,7 +129,6 @@ namespace KinectBinds
         }
 
         // event stuff
-
         public class LeftHandEventArgs : EventArgs
         {
             public HandPosition Current { get; }

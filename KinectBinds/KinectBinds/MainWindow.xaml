@@ -8,6 +8,6 @@
         Title="MainWindow" Height="500" Width="1280" Closing="Window_Closing" Loaded="Window_Loaded">
     <Grid>
         <Image x:Name="DisplayImage" HorizontalAlignment="Left" Height="480" VerticalAlignment="Top" Width="640"/>
-        <TextBlock x:Name="PositionText" HorizontalAlignment="Left" Margin="686,51,0,0" TextWrapping="Wrap" Text="init" VerticalAlignment="Top" FontSize="48" RenderTransformOrigin="0.517,0.12"/>
+        <TextBlock x:Name="PositionText" HorizontalAlignment="Left" Margin="640,0,0,0" TextWrapping="Wrap" Text="N/A" VerticalAlignment="Center" FontSize="40" RenderTransformOrigin="0.517,0.12" Height="484" Width="640" FontFamily="Global Monospace" FontWeight="Normal"/>
     </Grid>
 </Window>
